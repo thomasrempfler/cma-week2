@@ -15,6 +15,7 @@ library(readr)
 library(sf) 
 library(zoo)
 library(forcats)
+library(mapview)
 
 # task 1 ----
 wildschwein_BE <- read_delim("wildschwein_BE_2056.csv", ",")
@@ -216,3 +217,69 @@ ggplot(caro_mean_speed, aes(DatetimeUTC, mean_speed, colour = window)) +
   xlab("Time") +
   ylab("Mean speed [m/s]")
 
+
+# task 6 ----
+rd <- read_delim("data/rd_rid_zhaw.csv", ",")
+summary(rd)
+
+rd_sf <- st_as_sf(rd, coords = c("x", "y"), crs = 2056, remove = FALSE)
+
+# time intervals?
+rd_sf <- rd_sf |> 
+  group_by(Animal_no) |> 
+  mutate(timelag = as.numeric(difftime(lead(acquisition_time), acquisition_time), units = "secs")) |> 
+  mutate(sl = sqrt((x - lead(x))^2 + (y - lead(y))^2)) |> 
+  mutate(speed_ms = sl/timelag) |> 
+  mutate(Animal_no = as.factor(Animal_no))
+table(rd_sf$timelag)
+
+# how many individuals were tracked? -> 2 individuals (Nr. 38, 53)
+ggplot(rd_sf, aes(acquisition_time, Animal_no)) +
+  geom_point()
+
+rd_sf |>
+  distinct(Animal_no)
+
+# for how long were they tracked?
+rd_sf |> 
+  group_by(Animal_no) |> 
+  mutate(date_min = min(acquisition_time), date_max = max(acquisition_time)) |> 
+  distinct(date_min, date_max)
+
+# are there gaps?
+ggplot(rd_sf, aes(timelag)) +
+  geom_histogram(binwidth = 1) +
+  lims(x = c(0, 15000)) 
+
+# were they tracked concurrently or sequentially?
+ggplot(rd_sf, aes(acquisition_time, timelag/3600, colour = Animal_no)) +
+  geom_point()
+
+# what is the temporal sampling interval?
+rd_sf |> 
+  group_by(Animal_no, timelag/60) |> 
+  distinct() |> count()
+
+rd_sf |> 
+  group_by(Animal_no) |> 
+  summarise(mean_timelag = mean(timelag, na.rm = T)/60)
+
+# speed of both individuals?
+ggplot(rd_sf, aes(acquisition_time, speed_ms, colour = Animal_no)) +
+  geom_line(linewidth = 1) + 
+  ggtitle("Comparing derived speed for 2 individuals") +
+  theme_minimal() +
+  xlab("Time") +
+  ylab("Speed [m/s]") +
+  facet_wrap(~Animal_no)
+
+# mapping
+ggplot(rd_sf, aes(x, y, colour = Animal_no)) +
+  geom_point() + 
+  geom_path() +
+  coord_cartesian() +
+  ggtitle("Comparing 2 individuals") +
+  theme_minimal() +
+  facet_wrap(~Animal_no)
+
+mapview(rd_sf, zcol = "Animal_no", alpha.regions = .5)
