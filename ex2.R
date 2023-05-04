@@ -2,15 +2,19 @@ https://github.com/thomasrempfler/cma-week2.git
 
 # ex2
 
-# Date: 03.05.2023
+# date: 03.05.2023
 
-# Author: Thomas Rempfler
+# update: 04.05.2023
+
+# author: Thomas Rempfler
 
 
 library(dplyr) 
 library(ggplot2)
 library(readr) 
 library(sf) 
+library(zoo)
+library(forcats)
 
 # task 1 ----
 wildschwein_BE <- read_delim("wildschwein_BE_2056.csv", ",")
@@ -165,3 +169,50 @@ ggplot(caro_caro_9, aes(E, N, colour = timelag)) +
   coord_cartesian() +
   ggtitle("Comparing original- with 9 minutes-resampled data") +
   theme_minimal() 
+
+
+# task 5 ----
+
+# # examples
+# example <- rnorm(10)
+# rollmean(example, k = 3, fill = NA, align = "left")
+# rollmean(example, k = 4, fill = NA, align = "left")
+
+
+# comparison of different window sizes
+
+# 5 (mins)
+caro_5m <- caro |> 
+  mutate(window = "5 mins") |> 
+  mutate(mean_speed = rollmean(speed_ms, k = 5, fill = NA, align = "left"))
+  
+# 15 (mins)
+caro_15m <- caro |> 
+  mutate(window = "15 mins") |> 
+  mutate(mean_speed = rollmean(speed_ms, k = 15, fill = NA, align = "left"))
+
+# 30 (mins)
+caro_30m <- caro |> 
+  mutate(window = "30 mins") |> 
+  mutate(mean_speed = rollmean(speed_ms, k = 30, fill = NA, align = "left"))
+
+# 60 (mins)
+caro_60m <- caro |> 
+  mutate(window = "60 mins") |> 
+  mutate(mean_speed = rollmean(speed_ms, k = 60, fill = NA, align = "left"))
+
+# visualisations mean speed
+caro_mean_speed <- caro_5m |> 
+  bind_rows(caro_15m, caro_30m, caro_60m) |> 
+  filter(!is.na(mean_speed)) |> 
+  mutate(window = as.factor(window)) |> 
+  mutate(window = fct_relevel(window, c("5 mins", "15 mins", "30 mins", "60 mins")))
+
+# speed at different intervals (speed decreases with increasing timelag)
+ggplot(caro_mean_speed, aes(DatetimeUTC, mean_speed, colour = window)) +
+  geom_line(linewidth = 1) + 
+  ggtitle("Comparing derived mean speed at different moving windows") +
+  theme_minimal() +
+  xlab("Time") +
+  ylab("Mean speed [m/s]")
+
