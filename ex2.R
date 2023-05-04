@@ -277,7 +277,7 @@ ggplot(rd_sf, aes(acquisition_time, speed_ms, colour = Animal_no)) +
 ggplot(rd_sf, aes(x, y, colour = Animal_no)) +
   geom_point() + 
   geom_path() +
-  coord_cartesian() +
+  coord_fixed() +
   ggtitle("Comparing 2 individuals") +
   theme_minimal() +
   facet_wrap(~Animal_no)
